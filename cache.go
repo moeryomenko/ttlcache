@@ -16,6 +16,7 @@ const (
 	LFU
 )
 
+// Cache is common interface of cache.
 type Cache interface {
 	// Set inserts or updates the specified key-value pair with an expiration time.
 	Set(key string, value interface{}, expiry time.Duration) error
@@ -23,6 +24,7 @@ type Cache interface {
 	Get(key string) (interface{}, error)
 }
 
+// NewCache returns cache with selected eviction policy.
 func NewCache(capacity int, policy evictionPolicy) Cache {
 	switch policy {
 	case LRU:
