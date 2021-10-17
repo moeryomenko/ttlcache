@@ -2,3 +2,5 @@ github.com/cespare/xxhash/v2 v2.1.2 h1:YRXhKfTDauu4ajMg1TPgFO5jnlC2HCbmLXMcTG5cb
 github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/leanovate/gopter v0.2.9 h1:fQjYxZaynp97ozCzfOyOuAGOU4aU/z37zf/tOujFk7c=
 github.com/leanovate/gopter v0.2.9/go.mod h1:U2L/78B+KVFIx2VmW6onHJQzXtFb+p5y3y2Sh+Jxxv8=
+github.com/moeryomenko/synx v0.2.0 h1:AKyJUXObjADxI2QVSmhrgrOVTf6VNvhRqHtPImmrhz0=
+github.com/moeryomenko/synx v0.2.0/go.mod h1:WSnycUuSCzxhQYpskTF77POrskMz7lvcdNVHTf5H11c=

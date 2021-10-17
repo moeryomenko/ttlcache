@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -27,51 +28,42 @@ func genTestEntry() gopter.Gen {
 	})
 }
 
-func Test_Shard(t *testing.T) {
-	parameters := gopter.DefaultTestParameters()
-	// parameters.Rng.Seed(1633694940285315084) // for generate reproducible results.
-	parameters.MaxSize = 5
-	properties := gopter.NewProperties(parameters)
+func Test_LRUCache(t *testing.T) {
+	testcases := map[string]evictionPolicy{
+		"LRU": LRU,
+		"LFU": LFU,
+	}
 
-	testShard := newShard(100)
+	for name, testcase := range testcases {
+		name := name
+		testcase := testcase
+		t.Run(name, func(t *testing.T) {
+			parameters := gopter.DefaultTestParameters()
+			properties := gopter.NewProperties(parameters)
 
-	properties.Property("get recently set entry", prop.ForAll(
-		func(e testEntry) bool {
-			testShard.Set(e.Key, e.Value, time.Duration(e.TTL)*time.Millisecond)
-			_, exists := testShard.Get(e.Key)
-			return exists
-		},
-		genTestEntry(),
-	))
+			properties.Property(fmt.Sprintf("cache(%s) capacity doesn't exceed the specified", name), prop.ForAll(
+				func(capacity int, entries []testEntry) bool {
+					cache := NewCache(capacity, testcase)
 
-	properties.Property("get false on expired entry", prop.ForAll(
-		func(e testEntry) bool {
-			dur := time.Duration(e.TTL) * time.Microsecond
-			testShard.Set(e.Key, e.Value, dur)
-			time.Sleep(dur)
-			_, exists := testShard.Get(e.Key)
-			return !exists
-		},
-		genTestEntry(),
-	))
+					for _, entry := range entries {
+						cache.Set(entry.Key, entry.Value, time.Duration(entry.TTL)*time.Millisecond)
+					}
 
-	properties.Property("cache capacity doesn't exceed the specified", prop.ForAll(
-		func(entries []testEntry) bool {
-			capacity := len(entries)
-			if capacity == 0 {
-				capacity = 1
-			}
-			testShard := newShard(capacity)
-			for _, e := range entries {
-				testShard.Set(e.Key, e.Value, time.Duration(e.TTL)*time.Millisecond)
-			}
+					counter := 0
+					for _, entry := range entries {
+						_, err := cache.Get(entry.Key)
+						if err == nil {
+							counter++
+						}
+					}
 
-			testShard.Set("test", "test", 300*time.Millisecond)
+					return counter <= capacity // less if keys were duplicated.
+				},
+				gen.IntRange(10, 20),
+				gen.SliceOf(genTestEntry()),
+			))
 
-			return testShard.Len() == capacity
-		},
-		gen.SliceOf(genTestEntry()),
-	))
-
-	properties.TestingRun(t)
+			properties.TestingRun(t)
+		})
+	}
 }
