@@ -1,4 +1,4 @@
-# ttlcache
+# ttlcache [![Go Reference](https://pkg.go.dev/badge/github.com/moeryomenko/ttlcache.svg)](https://pkg.go.dev/github.com/moeryomenko/ttlcache)
 
 Cache library with configurable eviction policy, supported LFU and LRU.
 
