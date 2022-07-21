@@ -40,7 +40,7 @@ func genTestEntry() gopter.Gen {
 }
 
 func Test_LRUCache(t *testing.T) {
-	testcases := map[string]evictionPolicy{
+	testcases := map[string]EvictionPolicy{
 		"LRU": LRU,
 		"LFU": LFU,
 	}

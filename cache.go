@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-type evictionPolicy int
+type EvictionPolicy int
 
 var ErrNotFound = errors.New("key not found")
 
 const (
 	// Discards the least recently used items first.
-	LRU evictionPolicy = iota
+	LRU EvictionPolicy = iota
 	// Discards the least frequently used items first.
 	LFU
 )
@@ -25,7 +25,7 @@ type Cache interface {
 }
 
 // NewCache returns cache with selected eviction policy.
-func NewCache(capacity int, policy evictionPolicy) Cache {
+func NewCache(capacity int, policy EvictionPolicy) Cache {
 	switch policy {
 	case LRU:
 		return newLRUCache(capacity)
