@@ -8,7 +8,7 @@ import (
 )
 
 type LFUCache struct {
-	items    *synx.Map
+	items    map[string]*lfuItem
 	freqList *list.List
 	lock     synx.Spinlock
 	capacity int
@@ -28,7 +28,7 @@ type freqEntry struct {
 
 func newLFUCache(capacity int) *LFUCache {
 	cache := &LFUCache{
-		items:    synx.New(capacity),
+		items:    make(map[string]*lfuItem, capacity),
 		freqList: list.New(),
 		capacity: capacity,
 	}
@@ -46,15 +46,15 @@ func (c *LFUCache) Set(key string, value interface{}, expiration time.Duration) 
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	it, err := c.items.Get(key)
-	if err == nil {
-		item := it.(*lfuItem)
+	it, ok := c.items[key]
+	if ok {
+		item := it
 		item.value = value
 		item.expiration = time.Now().Add(expiration)
 		return nil
 	}
 
-	if c.items.Count == c.capacity {
+	if len(c.items) == c.capacity {
 		c.evict(1)
 	}
 
@@ -69,7 +69,8 @@ func (c *LFUCache) Set(key string, value interface{}, expiration time.Duration) 
 	fe.items[item] = struct{}{}
 
 	item.freqElement = el
-	return c.items.Set(key, item)
+	c.items[key] = item
+	return nil
 }
 
 // Get returns the value for specified key if it is present in the cache.
@@ -77,18 +78,17 @@ func (c *LFUCache) Get(key string) (interface{}, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	it, err := c.items.Get(key)
-	if err != nil {
+	it, ok := c.items[key]
+	if !ok {
 		return nil, ErrNotFound
 	}
 
-	item := it.(*lfuItem)
-	if item.expiration.Before(time.Now()) {
-		c.removeItem(item)
+	if it.expiration.Before(time.Now()) {
+		c.removeItem(it)
 		return nil, ErrNotFound
 	}
 
-	return item.value, nil
+	return it.value, nil
 }
 
 func (c *LFUCache) evict(count int) {
@@ -112,6 +112,6 @@ func (c *LFUCache) evict(count int) {
 
 func (c *LFUCache) removeItem(item *lfuItem) {
 	entry := item.freqElement.Value.(*freqEntry)
-	c.items.Del(item.key)
+	delete(c.items, item.key)
 	delete(entry.items, item)
 }

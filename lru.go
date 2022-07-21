@@ -8,7 +8,7 @@ import (
 )
 
 type LRUCache struct {
-	items     *synx.Map
+	items     map[string]any
 	evictList *list.List
 	capacity  int
 	lock      synx.Spinlock
@@ -16,7 +16,7 @@ type LRUCache struct {
 
 func newLRUCache(capacity int) *LRUCache {
 	return &LRUCache{
-		items:     synx.New(capacity),
+		items:     make(map[string]any),
 		evictList: list.New(),
 		capacity:  capacity,
 	}
@@ -34,7 +34,7 @@ func (c *LRUCache) Set(key string, value interface{}, expiration time.Duration) 
 	defer c.lock.Unlock()
 	// Check for existing item
 	var item *lruItem
-	if it, err := c.items.Get(key); err == nil {
+	if it, ok := c.items[key]; ok {
 		element, _ := it.(*list.Element)
 		c.evictList.MoveToFront(element)
 		item = element.Value.(*lruItem)
@@ -53,7 +53,7 @@ func (c *LRUCache) Set(key string, value interface{}, expiration time.Duration) 
 		value:      value,
 		expiration: time.Now().Add(expiration),
 	}
-	_ = c.items.Set(key, c.evictList.PushFront(item))
+	c.items[key] = c.evictList.PushFront(item)
 
 	return nil
 }
@@ -62,8 +62,8 @@ func (c *LRUCache) Set(key string, value interface{}, expiration time.Duration) 
 func (c *LRUCache) Get(key string) (interface{}, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	ent, err := c.items.Get(key)
-	if err != nil {
+	ent, ok := c.items[key]
+	if !ok {
 		return nil, ErrNotFound
 	}
 	item := ent.(*list.Element)
@@ -90,5 +90,5 @@ func (c *LRUCache) evict(count int) {
 
 func (c *LRUCache) removeElement(e *list.Element) {
 	entry := c.evictList.Remove(e).(*lruItem)
-	c.items.Del(entry.key)
+	delete(c.items, entry.key)
 }

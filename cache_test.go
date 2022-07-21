@@ -17,13 +17,24 @@ type testEntry struct {
 	TTL   int64
 }
 
+var dedup = make(map[string]struct{})
+
 func genTestEntry() gopter.Gen {
-	notEmptyString := func(s string) bool {
-		return s != ""
+	notEmptyUniqueString := func(s string) bool {
+		if s == "" {
+			return false
+		}
+
+		_, ok := dedup[s]
+		if !ok {
+			dedup[s] = struct{}{}
+		}
+
+		return !ok
 	}
 	return gen.Struct(reflect.TypeOf(&testEntry{}), map[string]gopter.Gen{
-		"Key":   gen.AnyString().SuchThat(notEmptyString),
-		"Value": gen.AnyString().SuchThat(notEmptyString),
+		"Key":   gen.AnyString().SuchThat(notEmptyUniqueString),
+		"Value": gen.AnyString().SuchThat(notEmptyUniqueString),
 		"TTL":   gen.Int64Range(400, 500),
 	})
 }
