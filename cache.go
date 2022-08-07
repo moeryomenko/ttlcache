@@ -14,6 +14,8 @@ const (
 	LRU EvictionPolicy = iota
 	// Discards the least frequently used items first.
 	LFU
+	// Adaptive replacement cache policy.
+	ARC
 )
 
 // Cache is common interface of cache.
@@ -31,6 +33,8 @@ func NewCache(capacity int, policy EvictionPolicy) Cache {
 		return newLRUCache(capacity)
 	case LFU:
 		return newLFUCache(capacity)
+	case ARC:
+		return newARCCache(capacity)
 	default:
 		panic("Unknown eviction policy")
 	}

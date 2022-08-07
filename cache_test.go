@@ -43,6 +43,7 @@ func Test_LRUCache(t *testing.T) {
 	testcases := map[string]EvictionPolicy{
 		"LRU": LRU,
 		"LFU": LFU,
+		"ARC": ARC,
 	}
 
 	for name, testcase := range testcases {

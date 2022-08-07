@@ -24,12 +24,12 @@ func newLRUCache(capacity int) *LRUCache {
 
 type lruItem struct {
 	key        string
-	value      interface{}
+	value      any
 	expiration time.Time
 }
 
 // Set inserts or updates the specified key-value pair with an expiration time.
-func (c *LRUCache) Set(key string, value interface{}, expiration time.Duration) error {
+func (c *LRUCache) Set(key string, value any, expiration time.Duration) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	// Check for existing item
@@ -59,7 +59,7 @@ func (c *LRUCache) Set(key string, value interface{}, expiration time.Duration) 
 }
 
 // Get returns the value for specified key if it is present in the cache.
-func (c *LRUCache) Get(key string) (interface{}, error) {
+func (c *LRUCache) Get(key string) (any, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	ent, ok := c.items[key]
@@ -75,6 +75,24 @@ func (c *LRUCache) Get(key string) (interface{}, error) {
 	c.evictList.MoveToFront(item)
 
 	return it.value, nil
+}
+
+func (c *LRUCache) Len() int {
+	return c.evictList.Len()
+}
+
+func (c *LRUCache) Remove(key string) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	ent, ok := c.items[key]
+	if !ok {
+		return ErrNotFound
+	}
+
+	item := ent.(*list.Element)
+	c.removeElement(item)
+	return nil
 }
 
 func (c *LRUCache) evict(count int) {
