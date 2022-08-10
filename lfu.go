@@ -90,6 +90,19 @@ func (c *LFUCache) Get(key string) (interface{}, error) {
 
 	return it.value, nil
 }
+func (c *LFUCache) Remove(key string) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	it, ok := c.items[key]
+	if !ok {
+		return ErrNotFound
+	}
+
+	c.removeItem(it)
+
+	return nil
+}
 
 func (c *LFUCache) evict(count int) {
 	entry := c.freqList.Front()

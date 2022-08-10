@@ -24,13 +24,15 @@ type Cache interface {
 	Set(key string, value interface{}, expiry time.Duration) error
 	// Get returns the value for specified key if it is present in the cache.
 	Get(key string) (interface{}, error)
+	// Remove removes item from cache by given key.
+	Remove(key string) error
 }
 
 // NewCache returns cache with selected eviction policy.
 func NewCache(capacity int, policy EvictionPolicy) Cache {
 	switch policy {
 	case LRU:
-		return newLRUCache(capacity)
+		return newLRUCache(capacity, true)
 	case LFU:
 		return newLFUCache(capacity)
 	case ARC:

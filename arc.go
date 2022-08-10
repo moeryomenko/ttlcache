@@ -26,10 +26,10 @@ type ARCCache struct {
 func newARCCache(capacity int) *ARCCache {
 	return &ARCCache{
 		capacity: capacity,
-		t1:       newLRUCache(capacity),
-		b1:       newLRUCache(capacity),
-		t2:       newLRUCache(capacity),
-		b2:       newLRUCache(capacity),
+		t1:       newLRUCache(capacity, false),
+		b1:       newLRUCache(capacity, false),
+		t2:       newLRUCache(capacity, false),
+		b2:       newLRUCache(capacity, false),
 	}
 }
 
@@ -94,6 +94,19 @@ func (c *ARCCache) Get(key string) (any, error) {
 	}
 
 	return c.t2.Get(key)
+}
+
+func (c *ARCCache) Remove(key string) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	// currently ignore errors.
+	c.t1.Remove(key)
+	c.t2.Remove(key)
+	c.b1.Remove(key)
+	c.b2.Remove(key)
+
+	return nil
 }
 
 func (c *ARCCache) replcae(direction bool, expiration time.Duration) {

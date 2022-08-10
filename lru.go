@@ -11,14 +11,16 @@ type LRUCache struct {
 	items     map[string]any
 	evictList *list.List
 	capacity  int
+	isSafe    bool
 	lock      synx.Spinlock
 }
 
-func newLRUCache(capacity int) *LRUCache {
+func newLRUCache(capacity int, isSafe bool) *LRUCache {
 	return &LRUCache{
 		items:     make(map[string]any),
 		evictList: list.New(),
 		capacity:  capacity,
+		isSafe:    isSafe,
 	}
 }
 
@@ -30,8 +32,11 @@ type lruItem struct {
 
 // Set inserts or updates the specified key-value pair with an expiration time.
 func (c *LRUCache) Set(key string, value any, expiration time.Duration) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	if c.isSafe {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+	}
+
 	// Check for existing item
 	var item *lruItem
 	if it, ok := c.items[key]; ok {
@@ -60,8 +65,10 @@ func (c *LRUCache) Set(key string, value any, expiration time.Duration) error {
 
 // Get returns the value for specified key if it is present in the cache.
 func (c *LRUCache) Get(key string) (any, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	if c.isSafe {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+	}
 	ent, ok := c.items[key]
 	if !ok {
 		return nil, ErrNotFound
@@ -82,8 +89,10 @@ func (c *LRUCache) Len() int {
 }
 
 func (c *LRUCache) Remove(key string) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	if c.isSafe {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+	}
 
 	ent, ok := c.items[key]
 	if !ok {
