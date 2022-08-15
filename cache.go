@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -29,14 +30,14 @@ type Cache interface {
 }
 
 // NewCache returns cache with selected eviction policy.
-func NewCache(capacity int, policy EvictionPolicy) Cache {
+func NewCache(ctx context.Context, capacity int, policy EvictionPolicy) Cache {
 	switch policy {
 	case LRU:
-		return newLRUCache(capacity, true)
+		return newLRUCache(ctx, capacity, true)
 	case LFU:
 		return newLFUCache(capacity)
 	case ARC:
-		return newARCCache(capacity)
+		return newARCCache(ctx, capacity)
 	default:
 		panic("Unknown eviction policy")
 	}

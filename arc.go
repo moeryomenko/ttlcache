@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"time"
 
 	"github.com/moeryomenko/synx"
@@ -23,13 +24,13 @@ type ARCCache struct {
 	lock     synx.Spinlock
 }
 
-func newARCCache(capacity int) *ARCCache {
+func newARCCache(ctx context.Context, capacity int) *ARCCache {
 	return &ARCCache{
 		capacity: capacity,
-		t1:       newLRUCache(capacity, false),
-		b1:       newLRUCache(capacity, false),
-		t2:       newLRUCache(capacity, false),
-		b2:       newLRUCache(capacity, false),
+		t1:       newLRUCache(ctx, capacity, false),
+		b1:       newLRUCache(ctx, capacity, false),
+		t2:       newLRUCache(ctx, capacity, false),
+		b2:       newLRUCache(ctx, capacity, false),
 	}
 }
 

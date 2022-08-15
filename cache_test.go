@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -55,7 +56,9 @@ func Test_LRUCache(t *testing.T) {
 
 			properties.Property(fmt.Sprintf("cache(%s) capacity doesn't exceed the specified", name), prop.ForAll(
 				func(capacity int, entries []testEntry) bool {
-					cache := NewCache(capacity, testcase)
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					cache := NewCache(ctx, capacity, testcase)
 
 					for _, entry := range entries {
 						cache.Set(entry.Key, entry.Value, time.Duration(entry.TTL)*time.Millisecond)
