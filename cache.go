@@ -35,7 +35,7 @@ func NewCache(ctx context.Context, capacity int, policy EvictionPolicy) Cache {
 	case LRU:
 		return newLRUCache(ctx, capacity, true)
 	case LFU:
-		return newLFUCache(capacity)
+		return newLFUCache(ctx, capacity)
 	case ARC:
 		return newARCCache(ctx, capacity)
 	default:

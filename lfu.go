@@ -2,6 +2,7 @@ package cache
 
 import (
 	"container/list"
+	"context"
 	"time"
 
 	"github.com/moeryomenko/synx"
@@ -12,13 +13,19 @@ type LFUCache struct {
 	freqList *list.List
 	lock     synx.Spinlock
 	capacity int
+
+	epoch  uint64
+	ttlMap map[uint64][]string
 }
 
 type lfuItem struct {
 	key         string
 	value       interface{}
 	freqElement *list.Element
-	expiration  time.Time
+
+	// ttl information.
+	epoch uint64
+	slot  int
 }
 
 type freqEntry struct {
@@ -26,9 +33,10 @@ type freqEntry struct {
 	items map[*lfuItem]struct{}
 }
 
-func newLFUCache(capacity int) *LFUCache {
+func newLFUCache(ctx context.Context, capacity int) *LFUCache {
 	cache := &LFUCache{
 		items:    make(map[string]*lfuItem, capacity),
+		ttlMap:   make(map[uint64][]string),
 		freqList: list.New(),
 		capacity: capacity,
 	}
@@ -37,6 +45,20 @@ func newLFUCache(capacity int) *LFUCache {
 		freq:  0,
 		items: make(map[*lfuItem]struct{}),
 	})
+
+	go func() {
+		ttlTicker := time.NewTicker(step)
+		defer ttlTicker.Stop()
+
+		for {
+			select {
+			case <-ttlTicker.C:
+				cache.collectExpired()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	return cache
 }
@@ -49,8 +71,9 @@ func (c *LFUCache) Set(key string, value interface{}, expiration time.Duration) 
 	it, ok := c.items[key]
 	if ok {
 		item := it
+		c.removeFromTTL(item.epoch, item.slot)
 		item.value = value
-		item.expiration = time.Now().Add(expiration)
+		item.epoch, item.slot = c.emplaceToTTLBucket(key, expiration)
 		return nil
 	}
 
@@ -61,7 +84,6 @@ func (c *LFUCache) Set(key string, value interface{}, expiration time.Duration) 
 	item := &lfuItem{
 		key:         key,
 		value:       value,
-		expiration:  time.Now().Add(expiration),
 		freqElement: nil,
 	}
 	el := c.freqList.Front()
@@ -69,6 +91,7 @@ func (c *LFUCache) Set(key string, value interface{}, expiration time.Duration) 
 	fe.items[item] = struct{}{}
 
 	item.freqElement = el
+	item.epoch, item.slot = c.emplaceToTTLBucket(key, expiration)
 	c.items[key] = item
 	return nil
 }
@@ -80,11 +103,6 @@ func (c *LFUCache) Get(key string) (interface{}, error) {
 
 	it, ok := c.items[key]
 	if !ok {
-		return nil, ErrNotFound
-	}
-
-	if it.expiration.Before(time.Now()) {
-		c.removeItem(it)
 		return nil, ErrNotFound
 	}
 
@@ -104,7 +122,61 @@ func (c *LFUCache) Remove(key string) error {
 	return nil
 }
 
+func (c *LFUCache) emplaceToTTLBucket(key string, expiration time.Duration) (epoch uint64, slot int) {
+	index := uint64(expiration/step) + c.epoch
+	if _, ok := c.ttlMap[index]; ok {
+		c.ttlMap[index] = append(c.ttlMap[index], key)
+		return index, len(c.ttlMap[index]) - 1
+	}
+
+	c.ttlMap[index] = []string{key}
+	return index, 0
+}
+
+func (c *LFUCache) removeFromTTL(epoch uint64, slot int) {
+	slots := c.ttlMap[epoch]
+	c.ttlMap[epoch] = append(slots[:slot], slots[slot+1:]...)
+}
+
+func (c *LFUCache) collectExpired() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.epoch++
+
+	c.removeExpired()
+}
+
+func (c *LFUCache) removeExpired() int {
+	removeCount := 0
+	counter := 0
+	for epochBucket := range c.ttlMap {
+		if epochBucket > c.epoch {
+			continue
+		}
+
+		for _, key := range c.ttlMap[epochBucket] {
+			if item, ok := c.items[key]; ok {
+				removeCount++
+				c.removeItem(item)
+			}
+		}
+
+		delete(c.ttlMap, epochBucket)
+		counter++
+	}
+
+	return removeCount
+}
+
 func (c *LFUCache) evict(count int) {
+	removed := c.removeExpired()
+	if count <= removed {
+		return
+	}
+
+	count -= removed
+
 	entry := c.freqList.Front()
 	for i := 0; i < count; {
 		if entry == nil {
