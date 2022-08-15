@@ -10,19 +10,7 @@ import (
 	"github.com/moeryomenko/ttlcache/internal/policies"
 )
 
-type evictionPolicy int
-
-const (
-	// Discards the least recently used items first.
-	LRU evictionPolicy = iota
-	// Discards the least frequently used items first.
-	LFU
-	// Adaptive replacement cache policy.
-	ARC
-)
-
-const defaultEpochGranularity = 1 * time.Second
-
+// Cache is cache with TTL and eviction over capacity.
 type Cache struct {
 	cache    replacementCacher
 	capacity int
@@ -32,52 +20,6 @@ type Cache struct {
 	granularity time.Duration
 	ttlMap      map[uint64][]string
 }
-
-type config struct {
-	policy      evictionPolicy
-	granularity time.Duration
-}
-
-type Option func(*config)
-
-func WithEvictionPolicy(policy evictionPolicy) Option {
-	return func(c *config) {
-		c.policy = policy
-	}
-}
-
-func WithTTLEpochGranularity(period time.Duration) Option {
-	return func(c *config) {
-		c.granularity = period
-	}
-}
-
-type entry struct {
-	value any
-
-	epoch uint64
-	slot  int
-}
-
-// replacementCacher is internal common interface of cache.
-type replacementCacher interface {
-	// Set inserts or updates the specified key-value pair.
-	Set(key string, value any)
-	// Get returns the value for specified key if it is present in the cache.
-	Get(key string) (any, bool)
-	// Remove removes item from cache by given key.
-	Remove(key string)
-	// Evict evicts given numbers of key from cache by given policy.
-	Evict(count int)
-	// Len returns current size of cache.
-	Len() int
-}
-
-var (
-	_ replacementCacher = (*policies.LRUCache)(nil)
-	_ replacementCacher = (*policies.LFUCache)(nil)
-	_ replacementCacher = (*policies.ARCCache)(nil)
-)
 
 // NewCache returns cache with selected eviction policy.
 func NewCache(ctx context.Context, capacity int, opts ...Option) *Cache {
@@ -123,6 +65,7 @@ func NewCache(ctx context.Context, capacity int, opts ...Option) *Cache {
 	return cache
 }
 
+// Set sets new or updates key-value pair to cache, which can be evicted only by policy.
 func (c *Cache) Set(key string, value any) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -136,6 +79,7 @@ func (c *Cache) Set(key string, value any) {
 	}
 }
 
+// SetNX sets new or updates key-value pair with given expiration time.
 func (c *Cache) SetNX(key string, value any, expiry time.Duration) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -156,6 +100,7 @@ func (c *Cache) SetNX(key string, value any, expiry time.Duration) {
 	}
 }
 
+// Get returns value by given key.
 func (c *Cache) Get(key string) (any, bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -167,6 +112,7 @@ func (c *Cache) Get(key string) (any, bool) {
 	return nil, ok
 }
 
+// Remove removes cache entry by given key.
 func (c *Cache) Remove(key string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -174,6 +120,7 @@ func (c *Cache) Remove(key string) {
 	c.cache.Remove(key)
 }
 
+// Len returns current size of cache.
 func (c *Cache) Len() int {
 	return c.cache.Len()
 }
@@ -230,4 +177,11 @@ func (c *Cache) evict(count int) {
 	count -= removed
 
 	c.cache.Evict(count)
+}
+
+type entry struct {
+	value any
+
+	epoch uint64
+	slot  int
 }
