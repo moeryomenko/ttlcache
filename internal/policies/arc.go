@@ -1,11 +1,4 @@
-package cache
-
-import (
-	"context"
-	"time"
-
-	"github.com/moeryomenko/synx"
-)
+package policies
 
 // ARCCache is improved LRU cache, that tracks both recency and frequency of use.
 // See: https://ieeexplore.ieee.org/document/1297303.
@@ -21,30 +14,28 @@ type ARCCache struct {
 
 	capacity int
 	prefer   int
-	lock     synx.Spinlock
 }
 
-func newARCCache(ctx context.Context, capacity int) *ARCCache {
+func NewARCCache(capacity int) *ARCCache {
 	return &ARCCache{
 		capacity: capacity,
-		t1:       newLRUCache(ctx, capacity, false),
-		b1:       newLRUCache(ctx, capacity, false),
-		t2:       newLRUCache(ctx, capacity, false),
-		b2:       newLRUCache(ctx, capacity, false),
+		t1:       NewLRUCache(capacity),
+		b1:       NewLRUCache(capacity),
+		t2:       NewLRUCache(capacity),
+		b2:       NewLRUCache(capacity),
 	}
 }
 
-func (c *ARCCache) Set(key string, value any, expiration time.Duration) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
+func (c *ARCCache) Set(key string, value any) {
 	if contains(c.t1, key) {
-		_ = c.t1.Remove(key)
-		return c.t2.Set(key, value, expiration)
+		c.t1.Remove(key)
+		c.t2.Set(key, value)
+		return
 	}
 
 	if contains(c.t2, key) {
-		return c.t2.Set(key, value, expiration)
+		c.t2.Set(key, value)
+		return
 	}
 
 	if contains(c.b1, key) {
@@ -63,16 +54,17 @@ func (c *ARCCache) Set(key string, value any, expiration time.Duration) error {
 		}
 
 		if c.t1.Len()+c.t2.Len() >= c.capacity {
-			c.replcae(true, expiration)
+			c.replcae(true)
 		}
 
 		c.b2.Remove(key)
 
-		return c.t2.Set(key, value, expiration)
+		c.t2.Set(key, value)
+		return
 	}
 
 	if c.t1.Len()+c.t2.Len() >= c.capacity {
-		c.replcae(false, expiration)
+		c.replcae(false)
 	}
 
 	if c.b1.Len() > c.capacity-c.prefer {
@@ -83,44 +75,44 @@ func (c *ARCCache) Set(key string, value any, expiration time.Duration) error {
 		removeOldest(c.b2)
 	}
 
-	return c.t1.Set(key, value, expiration)
+	c.t1.Set(key, value)
 }
 
-func (c *ARCCache) Get(key string) (any, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	if val, err := c.t1.Get(key); err != ErrNotFound {
-		return val, nil
+func (c *ARCCache) Get(key string) (any, bool) {
+	if val, ok := c.t1.Get(key); ok {
+		return val, ok
 	}
 
 	return c.t2.Get(key)
 }
 
-func (c *ARCCache) Remove(key string) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	// currently ignore errors.
+func (c *ARCCache) Remove(key string) {
 	c.t1.Remove(key)
 	c.t2.Remove(key)
 	c.b1.Remove(key)
 	c.b2.Remove(key)
-
-	return nil
 }
 
-func (c *ARCCache) replcae(direction bool, expiration time.Duration) {
+func (c *ARCCache) Evict(count int) {
+	c.t1.Evict(count)
+	c.t2.Evict(count)
+}
+
+func (c *ARCCache) Len() int {
+	return c.t1.Len() + c.t2.Len()
+}
+
+func (c *ARCCache) replcae(direction bool) {
 	t1Len := c.t1.Len()
 	if t1Len > 0 && (t1Len > c.prefer || (t1Len == c.prefer && direction)) {
 		k, ok := removeOldest(c.t1)
 		if ok {
-			c.b1.Set(k, nil, expiration)
+			c.b1.Set(k, nil)
 		}
 	} else {
 		k, ok := removeOldest(c.t2)
 		if ok {
-			c.b2.Set(k, nil, expiration)
+			c.b2.Set(k, nil)
 		}
 	}
 }
@@ -134,7 +126,7 @@ func removeOldest(cache *LRUCache) (string, bool) {
 	return "", false
 }
 
-func contains(cache Cache, key string) bool {
-	_, err := cache.Get(key)
-	return err != ErrNotFound
+func contains(cache *LRUCache, key string) bool {
+	_, ok := cache.Get(key)
+	return ok
 }

@@ -2,10 +2,6 @@ module github.com/moeryomenko/ttlcache
 
 go 1.18
 
-require (
-	github.com/leanovate/gopter v0.2.9
-	github.com/moeryomenko/synx v0.9.0
-	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
-)
+require github.com/moeryomenko/synx v0.9.0
 
 require golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
