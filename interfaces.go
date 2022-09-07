@@ -21,4 +21,5 @@ var (
 	_ replacementCacher = (*policies.LRUCache)(nil)
 	_ replacementCacher = (*policies.LFUCache)(nil)
 	_ replacementCacher = (*policies.ARCCache)(nil)
+	_ replacementCacher = (policies.NoEvictionCache)(nil)
 )

@@ -7,6 +7,8 @@ const (
 	LFU
 	// Adaptive replacement cache policy.
 	ARC
+	// Noop cache without replacement policy.
+	NOOP
 )
 
 // evictionPolicy incapsulated from user.

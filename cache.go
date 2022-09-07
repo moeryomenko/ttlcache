@@ -44,6 +44,8 @@ func NewCache(ctx context.Context, capacity int, opts ...Option) *Cache {
 		cache.cache = policies.NewLFUCache(capacity)
 	case ARC:
 		cache.cache = policies.NewARCCache(capacity)
+	case NOOP:
+		cache.cache = policies.NewNoEvictionCache(capacity)
 	default:
 		panic("Unknown eviction policy")
 	}
