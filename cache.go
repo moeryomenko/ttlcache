@@ -156,7 +156,7 @@ func (c *Cache) collectExpired() {
 func (c *Cache) removeExpired() int {
 	removeCount := 0
 
-	for epochCounter := c.epoch; epochCounter > 0; epochCounter-- {
+	for epochCounter := c.epoch; epochCounter >= 0; epochCounter-- {
 		epochBucket, ok := c.ttlMap[epochCounter]
 		if !ok {
 			return removeCount
