@@ -145,9 +145,10 @@ func (c *Cache) removeFromTTL(epoch uint64, slot int) {
 
 func (c *Cache) collectExpired() {
 	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	c.epoch++
+	defer func() {
+		c.epoch++
+		c.lock.Unlock()
+	}()
 
 	c.removeExpired()
 }
@@ -155,16 +156,16 @@ func (c *Cache) collectExpired() {
 func (c *Cache) removeExpired() int {
 	removeCount := 0
 
-	for epochBucket := range c.ttlMap {
-		if epochBucket > c.epoch {
-			continue
+	for epochCounter := c.epoch; epochCounter > 0; epochCounter-- {
+		epochBucket, ok := c.ttlMap[epochCounter]
+		if !ok {
+			return removeCount
 		}
-
-		for _, key := range c.ttlMap[epochBucket] {
+		for _, key := range epochBucket {
 			c.cache.Remove(key)
 		}
 
-		delete(c.ttlMap, epochBucket)
+		delete(c.ttlMap, epochCounter)
 	}
 
 	return removeCount
