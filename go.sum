@@ -1,4 +1,2 @@
-github.com/moeryomenko/synx v0.9.0 h1:UAe25FUTDFYA0H9u8AlMLqMrzj4/XwIi99C6pYAYOCw=
-github.com/moeryomenko/synx v0.9.0/go.mod h1:PzAkLFyRhzDr3kzr+fFlO1Y2RCZxr7rLiTK87gM1GT4=
-golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f h1:Ax0t5p6N38Ga0dThY21weqDEyz2oklo4IvDkpigvkD8=
-golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+github.com/moeryomenko/synx v0.11.0 h1:JisHVC6e8beGK1wQbnWB7lHmWblwcwF4LRaKXL5VFh8=
+github.com/moeryomenko/synx v0.11.0/go.mod h1:IlLIdxG6qnQGAkNWuWYUAu/A+XJbuZ+a3MrbVMH86Z4=

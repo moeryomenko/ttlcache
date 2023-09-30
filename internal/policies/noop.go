@@ -1,26 +1,26 @@
 package policies
 
-type NoEvictionCache map[string]any
+type NoEvictionCache[K comparable, V any] map[K]V
 
-func NewNoEvictionCache(wapmUpCapacity int) NoEvictionCache {
-	return make(map[string]any, wapmUpCapacity)
+func NewNoEvictionCache[K comparable, V any](wapmUpCapacity int) NoEvictionCache[K, V] {
+	return make(map[K]V, wapmUpCapacity)
 }
 
-func (c NoEvictionCache) Set(key string, value any) {
+func (c NoEvictionCache[K, V]) Set(key K, value V) {
 	c[key] = value
 }
 
-func (c NoEvictionCache) Get(key string) (any, bool) {
+func (c NoEvictionCache[K, V]) Get(key K) (V, bool) {
 	value, ok := c[key]
 	return value, ok
 }
 
-func (c NoEvictionCache) Len() int {
+func (c NoEvictionCache[K, V]) Len() int {
 	return len(c)
 }
 
-func (c NoEvictionCache) Remove(key string) {
+func (c NoEvictionCache[K, V]) Remove(key K) {
 	delete(c, key)
 }
 
-func (c NoEvictionCache) Evict(_ int) {}
+func (c NoEvictionCache[K, V]) Evict(_ int) {}

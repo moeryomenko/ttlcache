@@ -23,7 +23,7 @@ func Test_TTL(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			cache := NewCache(ctx, 1, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
+			cache := NewCache[string, string](ctx, 1, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
 
 			cache.SetNX(`test`, `string`, 10*time.Millisecond)
 			<-time.After(5 * time.Millisecond)
@@ -31,7 +31,7 @@ func Test_TTL(t *testing.T) {
 			if !ok {
 				fail(t, `expected key not expired`)
 			}
-			if v, ok := value.(string); !ok || v != `string` {
+			if value != `string` {
 				fail(t, `unexpected value %v`, value)
 			}
 			<-time.After(20 * time.Millisecond)
@@ -45,7 +45,7 @@ func Test_TTL(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			cache := NewCache(ctx, 10, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
+			cache := NewCache[string, string](ctx, 10, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
 
 			cache.SetNX(`test`, `string`, 20*time.Millisecond)
 			<-time.After(10 * time.Millisecond)
@@ -55,7 +55,7 @@ func Test_TTL(t *testing.T) {
 			if !ok {
 				fail(t, `expected key not expired`)
 			}
-			if v, ok := value.(string); !ok || v != `new string` {
+			if value != `new string` {
 				fail(t, `unexpected value %v`, value)
 			}
 			<-time.After(10 * time.Millisecond)
@@ -63,7 +63,7 @@ func Test_TTL(t *testing.T) {
 			if !ok {
 				fail(t, `expected key not expired`)
 			}
-			if v, ok := value.(string); !ok || v != `new string` {
+			if value != `new string` {
 				fail(t, `unexpected value %v`, value)
 			}
 		})
@@ -72,7 +72,7 @@ func Test_TTL(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			cache := NewCache(ctx, 2, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
+			cache := NewCache[string, string](ctx, 2, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(5*time.Millisecond))
 			cache.SetNX(`k1`, `v1`, 10*time.Millisecond)
 			cache.SetNX(`k2`, `v2`, 10*time.Millisecond)
 			_, ok := cache.Get(`k1`)
@@ -89,20 +89,20 @@ func Test_TTL(t *testing.T) {
 			if ok {
 				fail(t, `expected key evicted by policy`)
 			}
-			<-time.After(10 * time.Millisecond)
-			cache.SetNX(`k4`, `v4`, 30*time.Millisecond)
+			<-time.After(12 * time.Millisecond)
+			cache.SetNX(`k4`, `v4`, 30*time.Millisecond) // TODO: debug
 			value3, ok := cache.Get(`k3`)
 			if !ok {
 				fail(t, `expected key(k3) not expired`)
 			}
-			if v, ok := value3.(string); !ok || v != `v3` {
+			if  value3 != `v3` {
 				fail(t, `unexpected value %v`, value3)
 			}
 			value4, ok := cache.Get(`k4`)
 			if !ok {
 				fail(t, `expected key(k4) not expired`)
 			}
-			if v, ok := value4.(string); !ok || v != `v4` {
+			if  value4 != `v4` {
 				fail(t, `unexpected value %v`, value4)
 			}
 		})

@@ -11,18 +11,18 @@ import (
 )
 
 // Cache is cache with TTL and eviction over capacity.
-type Cache struct {
-	cache    replacementCacher
+type Cache[K comparable, V any] struct {
+	cache    replacementCacher[K, entry[V]]
 	capacity int
 
 	lock        synx.Spinlock
 	epoch       uint64
 	granularity time.Duration
-	ttlMap      map[uint64][]string
+	ttlMap      map[uint64][]K
 }
 
 // NewCache returns cache with selected eviction policy.
-func NewCache(ctx context.Context, capacity int, opts ...Option) *Cache {
+func NewCache[K comparable, V any](ctx context.Context, capacity int, opts ...Option) *Cache[K, V] {
 	cfg := config{
 		policy:      LRU,
 		granularity: defaultEpochGranularity,
@@ -32,20 +32,20 @@ func NewCache(ctx context.Context, capacity int, opts ...Option) *Cache {
 		opt(&cfg)
 	}
 
-	cache := &Cache{
+	cache := &Cache[K, V]{
 		capacity:    capacity,
 		granularity: cfg.granularity,
-		ttlMap:      make(map[uint64][]string),
+		ttlMap:      make(map[uint64][]K),
 	}
 	switch cfg.policy {
 	case LRU:
-		cache.cache = policies.NewLRUCache(capacity)
+		cache.cache = policies.NewLRUCache[K, entry[V]](capacity)
 	case LFU:
-		cache.cache = policies.NewLFUCache(capacity)
+		cache.cache = policies.NewLFUCache[K, entry[V]](capacity)
 	case ARC:
-		cache.cache = policies.NewARCCache(capacity)
+		cache.cache = policies.NewARCCache[K, entry[V]](capacity)
 	case NOOP:
-		cache.cache = policies.NewNoEvictionCache(capacity)
+		cache.cache = policies.NewNoEvictionCache[K, entry[V]](capacity)
 	default:
 		panic("Unknown eviction policy")
 	}
@@ -68,13 +68,13 @@ func NewCache(ctx context.Context, capacity int, opts ...Option) *Cache {
 }
 
 // Set sets new or updates key-value pair to cache, which can be evicted only by policy.
-func (c *Cache) Set(key string, value any) {
+func (c *Cache[K, V]) Set(key K, value V) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	// NOTE: set max epoch value, prevent eviction by ttl, but can be
 	// evicted by replacement policy.
-	c.cache.Set(key, entry{value: value, epoch: math.MaxUint64})
+	c.cache.Set(key, entry[V]{value: value, epoch: math.MaxUint64})
 
 	if c.cache.Len() > c.capacity {
 		c.evict(1)
@@ -82,20 +82,16 @@ func (c *Cache) Set(key string, value any) {
 }
 
 // SetNX sets new or updates key-value pair with given expiration time.
-func (c *Cache) SetNX(key string, value any, expiry time.Duration) {
+func (c *Cache[K, V]) SetNX(key K, value V, expiry time.Duration) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	ent := entry{value: value}
-
-	item, ok := c.cache.Get(key)
-	if ok {
-		ent := item.(entry)
-		c.removeFromTTL(ent.epoch, ent.slot)
+    if item, ok := c.cache.Get(key); ok {
+		c.removeFromTTL(item.epoch, item.slot)
 	}
 
-	ent.epoch, ent.slot = c.emplaceToTTLBucket(key, expiry)
-	c.cache.Set(key, ent)
+    epoch, slot := c.emplaceToTTLBucket(key, expiry)
+	c.cache.Set(key, entry[V]{value: value, epoch: epoch, slot: slot})
 
 	if c.cache.Len() > c.capacity {
 		c.evict(1)
@@ -103,19 +99,20 @@ func (c *Cache) SetNX(key string, value any, expiry time.Duration) {
 }
 
 // Get returns value by given key.
-func (c *Cache) Get(key string) (any, bool) {
+func (c *Cache[K, V]) Get(key K) (V, bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	item, ok := c.cache.Get(key)
 	if ok {
-		return item.(entry).value, ok
+		return item.value, ok
 	}
-	return nil, ok
+        var v V
+	return v, ok
 }
 
 // Remove removes cache entry by given key.
-func (c *Cache) Remove(key string) {
+func (c *Cache[K, V]) Remove(key K) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -123,27 +120,27 @@ func (c *Cache) Remove(key string) {
 }
 
 // Len returns current size of cache.
-func (c *Cache) Len() int {
+func (c *Cache[K, V]) Len() int {
 	return c.cache.Len()
 }
 
-func (c *Cache) emplaceToTTLBucket(key string, expiration time.Duration) (epoch uint64, slot int) {
+func (c *Cache[K, V]) emplaceToTTLBucket(key K, expiration time.Duration) (epoch uint64, slot int) {
 	index := uint64(expiration/c.granularity) + c.epoch
 	if _, ok := c.ttlMap[index]; ok {
 		c.ttlMap[index] = append(c.ttlMap[index], key)
 		return index, len(c.ttlMap[index]) - 1
 	}
 
-	c.ttlMap[index] = []string{key}
+	c.ttlMap[index] = []K{key}
 	return index, 0
 }
 
-func (c *Cache) removeFromTTL(epoch uint64, slot int) {
+func (c *Cache[K, V]) removeFromTTL(epoch uint64, slot int) {
 	slots := c.ttlMap[epoch]
 	c.ttlMap[epoch] = append(slots[:slot], slots[slot+1:]...)
 }
 
-func (c *Cache) collectExpired() {
+func (c *Cache[K, V]) collectExpired() {
 	c.lock.Lock()
 	defer func() {
 		c.epoch++
@@ -153,7 +150,7 @@ func (c *Cache) collectExpired() {
 	c.removeExpired()
 }
 
-func (c *Cache) removeExpired() int {
+func (c *Cache[K, V]) removeExpired() int {
 	removeCount := 0
 
 	for epochCounter := c.epoch; epochCounter >= 0; epochCounter-- {
@@ -171,7 +168,7 @@ func (c *Cache) removeExpired() int {
 	return removeCount
 }
 
-func (c *Cache) evict(count int) {
+func (c *Cache[K, V]) evict(count int) {
 	removed := c.removeExpired()
 	if count <= removed {
 		return
@@ -182,8 +179,8 @@ func (c *Cache) evict(count int) {
 	c.cache.Evict(count)
 }
 
-type entry struct {
-	value any
+type entry[V any] struct {
+	value V
 
 	epoch uint64
 	slot  int

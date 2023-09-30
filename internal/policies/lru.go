@@ -2,32 +2,32 @@ package policies
 
 import "container/list"
 
-type LRUCache struct {
-	items     map[string]*list.Element
+type LRUCache[K comparable, V any] struct {
+	items     map[K]*list.Element
 	evictList *list.List
 	capacity  int
 }
 
-func NewLRUCache(capacity int) *LRUCache {
-	return &LRUCache{
-		items:     make(map[string]*list.Element),
+func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
+	return &LRUCache[K, V]{
+		items:     make(map[K]*list.Element),
 		evictList: list.New(),
 		capacity:  capacity,
 	}
 }
 
-type lruItem struct {
-	key   string
-	value any
+type lruItem[K comparable, V any] struct {
+	key  K
+	value V
 }
 
 // Set inserts or updates the specified key-value pair with an expiration time.
-func (c *LRUCache) Set(key string, value any) {
+func (c *LRUCache[K, V]) Set(key K, value V) {
 	// Check for existing item
-	var item *lruItem
+	var item *lruItem[K, V]
 	if it, ok := c.items[key]; ok {
 		c.evictList.MoveToFront(it)
-		item = it.Value.(*lruItem)
+		item = it.Value.(*lruItem[K, V])
 		item.value = value
 		return
 	}
@@ -37,7 +37,7 @@ func (c *LRUCache) Set(key string, value any) {
 		c.Evict(1)
 	}
 
-	item = &lruItem{
+	item = &lruItem[K, V]{
 		key:   key,
 		value: value,
 	}
@@ -45,28 +45,29 @@ func (c *LRUCache) Set(key string, value any) {
 }
 
 // Get returns the value for specified key if it is present in the cache.
-func (c *LRUCache) Get(key string) (any, bool) {
+func (c *LRUCache[K, V]) Get(key K) (V, bool) {
 	item, ok := c.items[key]
 	if !ok {
-		return nil, false
+		var v V
+		return v, false
 	}
-	it := item.Value.(*lruItem)
+	it := item.Value.(*lruItem[K,V])
 	c.evictList.MoveToFront(item)
 
 	return it.value, true
 }
 
-func (c *LRUCache) Len() int {
+func (c *LRUCache[K, V]) Len() int {
 	return len(c.items)
 }
 
-func (c *LRUCache) Remove(key string) {
+func (c *LRUCache[K, V]) Remove(key K) {
 	if item, ok := c.items[key]; ok {
 		c.removeElement(item)
 	}
 }
 
-func (c *LRUCache) Evict(count int) {
+func (c *LRUCache[K, V]) Evict(count int) {
 	for i := 0; i < count; i++ {
 		ent := c.evictList.Back()
 		if ent == nil {
@@ -77,7 +78,7 @@ func (c *LRUCache) Evict(count int) {
 	}
 }
 
-func (c *LRUCache) removeElement(e *list.Element) {
-	entry := c.evictList.Remove(e).(*lruItem)
+func (c *LRUCache[K, V]) removeElement(e *list.Element) {
+	entry := c.evictList.Remove(e).(*lruItem[K,V])
 	delete(c.items, entry.key)
 }
