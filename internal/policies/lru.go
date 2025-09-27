@@ -17,7 +17,7 @@ func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
 }
 
 type lruItem[K comparable, V any] struct {
-	key  K
+	key   K
 	value V
 }
 
@@ -51,7 +51,7 @@ func (c *LRUCache[K, V]) Get(key K) (V, bool) {
 		var v V
 		return v, false
 	}
-	it := item.Value.(*lruItem[K,V])
+	it := item.Value.(*lruItem[K, V])
 	c.evictList.MoveToFront(item)
 
 	return it.value, true
@@ -79,6 +79,6 @@ func (c *LRUCache[K, V]) Evict(count int) {
 }
 
 func (c *LRUCache[K, V]) removeElement(e *list.Element) {
-	entry := c.evictList.Remove(e).(*lruItem[K,V])
+	entry := c.evictList.Remove(e).(*lruItem[K, V])
 	delete(c.items, entry.key)
 }

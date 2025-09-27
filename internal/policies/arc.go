@@ -16,7 +16,7 @@ type ARCCache[K comparable, V any] struct {
 	prefer   int
 }
 
-func NewARCCache[K comparable, V any](capacity int) *ARCCache [K, V]{
+func NewARCCache[K comparable, V any](capacity int) *ARCCache[K, V] {
 	return &ARCCache[K, V]{
 		capacity: capacity,
 		t1:       NewLRUCache[K, V](capacity),

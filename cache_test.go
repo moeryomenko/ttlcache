@@ -95,14 +95,14 @@ func Test_TTL(t *testing.T) {
 			if !ok {
 				fail(t, `expected key(k3) not expired`)
 			}
-			if  value3 != `v3` {
+			if value3 != `v3` {
 				fail(t, `unexpected value %v`, value3)
 			}
 			value4, ok := cache.Get(`k4`)
 			if !ok {
 				fail(t, `expected key(k4) not expired`)
 			}
-			if  value4 != `v4` {
+			if value4 != `v4` {
 				fail(t, `unexpected value %v`, value4)
 			}
 		})

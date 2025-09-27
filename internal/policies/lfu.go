@@ -11,8 +11,8 @@ type LFUCache[K comparable, V any] struct {
 }
 
 type lfuItem[K comparable, V any] struct {
-	key        K
-	value      V
+	key         K
+	value       V
 	freqElement *list.Element
 }
 

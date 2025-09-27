@@ -3,9 +3,8 @@ package cache
 import (
 	"context"
 	"math"
+	"sync"
 	"time"
-
-	"github.com/moeryomenko/synx"
 
 	"github.com/moeryomenko/ttlcache/internal/policies"
 )
@@ -15,7 +14,7 @@ type Cache[K comparable, V any] struct {
 	cache    replacementCacher[K, entry[V]]
 	capacity int
 
-	lock        synx.Spinlock
+	lock        sync.Mutex
 	epoch       uint64
 	granularity time.Duration
 	ttlMap      map[uint64][]K
@@ -86,11 +85,11 @@ func (c *Cache[K, V]) SetNX(key K, value V, expiry time.Duration) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-    if item, ok := c.cache.Get(key); ok {
+	if item, ok := c.cache.Get(key); ok {
 		c.removeFromTTL(item.epoch, item.slot)
 	}
 
-    epoch, slot := c.emplaceToTTLBucket(key, expiry)
+	epoch, slot := c.emplaceToTTLBucket(key, expiry)
 	c.cache.Set(key, entry[V]{value: value, epoch: epoch, slot: slot})
 
 	if c.cache.Len() > c.capacity {
@@ -107,7 +106,7 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 	if ok {
 		return item.value, ok
 	}
-        var v V
+	var v V
 	return v, ok
 }
 
@@ -153,13 +152,14 @@ func (c *Cache[K, V]) collectExpired() {
 func (c *Cache[K, V]) removeExpired() int {
 	removeCount := 0
 
-	for epochCounter := c.epoch; epochCounter >= 0; epochCounter-- {
+	for epochCounter := uint64(1); epochCounter <= c.epoch; epochCounter++ {
 		epochBucket, ok := c.ttlMap[epochCounter]
 		if !ok {
-			return removeCount
+			continue
 		}
 		for _, key := range epochBucket {
 			c.cache.Remove(key)
+			removeCount++
 		}
 
 		delete(c.ttlMap, epochCounter)
