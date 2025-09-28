@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -18,12 +17,15 @@ func Test_TTL(t *testing.T) {
 	}
 
 	for name, tc := range testcaces {
-		tc := tc
 		t.Run(fmt.Sprintf(`cache(%s) eviction expired items`, name), func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
-			cache := NewCache[string, string](ctx, 1, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
+			cache := NewCache[string, string](
+				ctx,
+				1,
+				WithEvictionPolicy(tc.policy),
+				WithTTLEpochGranularity(10*time.Millisecond),
+			)
 
 			cache.SetNX(`test`, `string`, 10*time.Millisecond)
 			<-time.After(5 * time.Millisecond)
@@ -42,10 +44,14 @@ func Test_TTL(t *testing.T) {
 		})
 
 		t.Run(fmt.Sprintf(`cache(%s) update expiration`, name), func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
-			cache := NewCache[string, string](ctx, 10, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(10*time.Millisecond))
+			cache := NewCache[string, string](
+				ctx,
+				10,
+				WithEvictionPolicy(tc.policy),
+				WithTTLEpochGranularity(10*time.Millisecond),
+			)
 
 			cache.SetNX(`test`, `string`, 20*time.Millisecond)
 			<-time.After(10 * time.Millisecond)
@@ -69,8 +75,7 @@ func Test_TTL(t *testing.T) {
 		})
 
 		t.Run(fmt.Sprintf(`cache(%s) eviction policy and expiration`, name), func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			cache := NewCache[string, string](ctx, 2, WithEvictionPolicy(tc.policy), WithTTLEpochGranularity(5*time.Millisecond))
 			cache.SetNX(`k1`, `v1`, 10*time.Millisecond)
